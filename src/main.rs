@@ -25,14 +25,23 @@ pub struct Statistics {
     threads: usize,
     /// Throughput
     throughput: f64,
+    /// Input path
+    path: String,
 }
 impl Statistics {
-    pub fn new(elapsed: f64, n_records: usize, format: FileFormat, threads: usize) -> Self {
+    pub fn new(
+        elapsed: f64,
+        n_records: usize,
+        format: FileFormat,
+        threads: usize,
+        path: String,
+    ) -> Self {
         Self {
             elapsed,
             n_records,
             format,
             threads,
+            path,
             throughput: n_records as f64 / elapsed,
         }
     }
@@ -65,8 +74,13 @@ fn main() -> Result<()> {
     };
     if let Some(log_path) = args.log_path() {
         let elapsed = start.elapsed().as_secs_f64();
-        let statistics =
-            Statistics::new(elapsed, counter.n_records(), args.format()?, args.threads());
+        let statistics = Statistics::new(
+            elapsed,
+            counter.n_records(),
+            args.format()?,
+            args.threads(),
+            args.path().to_string(),
+        );
         let mut log_handle = File::create(log_path)?;
         serde_json::to_writer_pretty(&mut log_handle, &statistics)?;
         log_handle.flush()?;
