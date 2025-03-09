@@ -8,3 +8,9 @@ anyhow = "1.0.97"
 clap = { version = "4.5.31", features = ["derive"] }
 paraseq = "0.1.2"
 parking_lot = "0.12.3"
+binseq = { git = "ssh://github.com/noamteyssier/binseq" }
+vbinseq = { git = "ssh://github.com/noamteyssier/vbinseq" }
+hashbrown = "0.15.2"
+bitnuc = "0.2.10"
+num_cpus = "1.16.0"
+niffler = "3.0.0"
