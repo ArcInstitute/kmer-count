@@ -8,6 +8,10 @@ pub type KmerMap = HashMap<u64, usize>;
 
 #[derive(Clone)]
 pub struct Counter {
+    /// Statistics
+    local_n: usize,
+    global_n: Arc<Mutex<usize>>,
+
     /// Maps
     local_map: KmerMap,
     global_map: Arc<Mutex<KmerMap>>,
@@ -24,6 +28,8 @@ impl Counter {
             bail!("Currently only supporting kmer sizes <32bp.")
         }
         Ok(Self {
+            local_n: 0,
+            global_n: Arc::new(Mutex::new(0)),
             local_map: KmerMap::default(),
             global_map: Arc::new(Mutex::new(KmerMap::default())),
             dbuf: Vec::new(),
@@ -44,6 +50,10 @@ impl Counter {
         }
         writer.flush()?;
         Ok(())
+    }
+
+    pub fn n_records(&self) -> usize {
+        *self.global_n.lock()
     }
 }
 
@@ -80,6 +90,7 @@ impl binseq::ParallelProcessor for Counter {
             record.decode_s(&mut self.dbuf)?;
         }
         kmer_count(&self.dbuf, &mut self.local_map, self.ksize)?;
+        self.local_n += 1;
         Ok(())
     }
     fn on_batch_complete(&mut self) -> binseq::Result<()> {
@@ -88,7 +99,12 @@ impl binseq::ParallelProcessor for Counter {
             let mut global = self.global_map.lock();
             consolidate_maps(&mut self.local_map, &mut global);
         }
+        // Local the global count
+        {
+            *self.global_n.lock() += self.local_n;
+        }
         self.local_map.clear(); // should be drained but just in case
+        self.local_n = 0;
         Ok(())
     }
 }
@@ -101,6 +117,7 @@ impl vbinseq::ParallelProcessor for Counter {
             record.decode_s(&mut self.dbuf)?;
         }
         kmer_count(&self.dbuf, &mut self.local_map, self.ksize)?;
+        self.local_n += 1;
         Ok(())
     }
     fn on_batch_complete(&mut self) -> vbinseq::Result<()> {
@@ -109,7 +126,12 @@ impl vbinseq::ParallelProcessor for Counter {
             let mut global = self.global_map.lock();
             consolidate_maps(&mut self.local_map, &mut global);
         }
+        // Local the global count
+        {
+            *self.global_n.lock() += self.local_n;
+        }
         self.local_map.clear(); // should be drained but just in case
+        self.local_n = 0;
         Ok(())
     }
 }
@@ -120,6 +142,7 @@ impl paraseq::parallel::ParallelProcessor for Counter {
         record: Rf,
     ) -> paraseq::parallel::Result<()> {
         kmer_count(record.seq(), &mut self.local_map, self.ksize)?;
+        self.local_n += 1;
         Ok(())
     }
     fn on_batch_complete(&mut self) -> paraseq::parallel::Result<()> {
@@ -128,7 +151,12 @@ impl paraseq::parallel::ParallelProcessor for Counter {
             let mut global = self.global_map.lock();
             consolidate_maps(&mut self.local_map, &mut global);
         }
+        // Local the global count
+        {
+            *self.global_n.lock() += self.local_n;
+        }
         self.local_map.clear(); // should be drained but just in case
+        self.local_n = 0;
         Ok(())
     }
 }

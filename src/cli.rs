@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use clap::Parser;
+use serde::Serialize;
 
 #[derive(Parser)]
 pub struct Cli {
@@ -16,6 +17,10 @@ pub struct Cli {
     /// 0 for maximum available
     #[clap(short = 'T', long, default_value = "1")]
     threads: usize,
+
+    /// Log file path
+    #[clap(short = 'L', long)]
+    log: Option<String>,
 }
 impl Cli {
     pub fn format(&self) -> Result<FileFormat> {
@@ -43,6 +48,9 @@ impl Cli {
     pub fn path(&self) -> &str {
         &self.input
     }
+    pub fn log_path(&self) -> Option<&str> {
+        self.log.as_ref().map(|s| s.as_str())
+    }
     pub fn ksize(&self) -> usize {
         self.kmer
     }
@@ -55,9 +63,12 @@ impl Cli {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize)]
 pub enum FileFormat {
+    #[serde(rename = "bq")]
     Bq,
+    #[serde(rename = "vbq")]
     Vbq,
+    #[serde(rename = "fq")]
     Fq,
 }
