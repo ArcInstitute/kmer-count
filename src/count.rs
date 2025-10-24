@@ -123,7 +123,6 @@ impl<Rf: paraseq::Record> paraseq::parallel::ParallelProcessor<Rf> for Counter {
         {
             *self.global_n.lock() += self.local_n;
         }
-        self.local_map.clear(); // should be drained but just in case
         self.local_n = 0;
         Ok(())
     }
