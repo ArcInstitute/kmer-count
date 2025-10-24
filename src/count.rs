@@ -39,6 +39,9 @@ impl Counter {
 
     pub fn pprint<W: Write>(&self, writer: &mut W) -> Result<()> {
         let mut dbuf = Vec::with_capacity(self.ksize);
+        let mut csv_writer = csv::WriterBuilder::new()
+            .delimiter(b'\t')
+            .from_writer(writer);
         for (k, v) in self.global_map.lock().iter() {
             // Decode the sequence
             {
@@ -46,9 +49,9 @@ impl Counter {
                 bitnuc::from_2bit(*k, self.ksize, &mut dbuf)?;
             }
             let seq_str = std::str::from_utf8(&dbuf)?;
-            writeln!(writer, "{}\t{}", v, seq_str)?;
+            csv_writer.serialize((v, seq_str))?;
         }
-        writer.flush()?;
+        csv_writer.flush()?;
         Ok(())
     }
 
