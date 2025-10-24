@@ -83,7 +83,7 @@ fn consolidate_maps(from: &mut KmerMap, to: &mut KmerMap) {
 }
 
 impl binseq::ParallelProcessor for Counter {
-    fn process_record(&mut self, record: binseq::RefRecord) -> binseq::Result<()> {
+    fn process_record<Rf: binseq::BinseqRecord>(&mut self, record: Rf) -> binseq::Result<()> {
         // Decode record
         {
             self.dbuf.clear();
@@ -109,39 +109,9 @@ impl binseq::ParallelProcessor for Counter {
     }
 }
 
-impl vbinseq::ParallelProcessor for Counter {
-    fn process_record(&mut self, record: vbinseq::RefRecord) -> vbinseq::Result<()> {
-        // Decode record
-        {
-            self.dbuf.clear();
-            record.decode_s(&mut self.dbuf)?;
-        }
-        kmer_count(&self.dbuf, &mut self.local_map, self.ksize)?;
-        self.local_n += 1;
-        Ok(())
-    }
-    fn on_batch_complete(&mut self) -> vbinseq::Result<()> {
-        // Lock the global map
-        {
-            let mut global = self.global_map.lock();
-            consolidate_maps(&mut self.local_map, &mut global);
-        }
-        // Local the global count
-        {
-            *self.global_n.lock() += self.local_n;
-        }
-        self.local_map.clear(); // should be drained but just in case
-        self.local_n = 0;
-        Ok(())
-    }
-}
-
-impl paraseq::parallel::ParallelProcessor for Counter {
-    fn process_record<Rf: paraseq::fastx::Record>(
-        &mut self,
-        record: Rf,
-    ) -> paraseq::parallel::Result<()> {
-        kmer_count(record.seq(), &mut self.local_map, self.ksize)?;
+impl<Rf: paraseq::Record> paraseq::parallel::ParallelProcessor<Rf> for Counter {
+    fn process_record(&mut self, record: Rf) -> paraseq::parallel::Result<()> {
+        kmer_count(&record.seq(), &mut self.local_map, self.ksize)?;
         self.local_n += 1;
         Ok(())
     }

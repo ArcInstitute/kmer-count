@@ -4,14 +4,15 @@ use std::{
 };
 
 use anyhow::Result;
+use binseq::ParallelReader as BinseqParallelReader;
 use clap::Parser;
+use paraseq::{fastx, parallel::ParallelReader as ParaseqParallelReader};
+use serde::Serialize;
 
 mod cli;
 mod count;
 use cli::{Cli, FileFormat};
 use count::Counter;
-use paraseq::{fastq, parallel::ParallelReader};
-use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct Statistics {
@@ -52,23 +53,16 @@ fn main() -> Result<()> {
     let mut out_handle = BufWriter::new(stdout());
     let start = std::time::Instant::now();
     let counter = match args.format()? {
-        FileFormat::Bq => {
-            let reader = binseq::MmapReader::new(args.path())?;
+        FileFormat::Binseq => {
+            let reader = binseq::BinseqReader::new(args.path())?;
             let counter = Counter::new(args.ksize())?;
             reader.process_parallel(counter.clone(), args.threads())?;
             counter
         }
-        FileFormat::Vbq => {
-            let reader = vbinseq::MmapReader::new(args.path())?;
-            let counter = Counter::new(args.ksize())?;
-            reader.process_parallel(counter.clone(), args.threads())?;
-            counter
-        }
-        FileFormat::Fq => {
-            let (in_handle, _comp) = niffler::send::from_path(args.path())?;
-            let reader = fastq::Reader::new(in_handle);
-            let counter = Counter::new(args.ksize())?;
-            reader.process_parallel(counter.clone(), args.threads())?;
+        FileFormat::Fastx => {
+            let reader = fastx::Reader::from_path(args.path())?;
+            let mut counter = Counter::new(args.ksize())?;
+            reader.process_parallel(&mut counter, args.threads())?;
             counter
         }
     };

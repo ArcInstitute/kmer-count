@@ -24,23 +24,14 @@ pub struct Cli {
 }
 impl Cli {
     pub fn format(&self) -> Result<FileFormat> {
-        let ext = if self.input.contains(".gz") {
-            let num_splits = self.input.split(".").count();
-            self.input.split(".").nth(num_splits - 2)
-        } else {
-            self.input.split(".").last()
-        };
-        if let Some(ext) = ext {
-            match ext {
-                "bq" => Ok(FileFormat::Bq),
-                "vbq" => Ok(FileFormat::Vbq),
-                "fq" | "fastq" => Ok(FileFormat::Fq),
-                _ => bail!(
-                    "Could not determine file format from {} with ext {}",
-                    &self.input,
-                    ext
-                ),
-            }
+        if self.input.ends_with(".bq") | self.input.ends_with(".vbq") {
+            Ok(FileFormat::Binseq)
+        } else if self.input.contains(".fastq")
+            | self.input.contains(".fq")
+            | self.input.contains(".fasta")
+            | self.input.contains(".fa")
+        {
+            Ok(FileFormat::Fastx)
         } else {
             bail!("Could not determine file format from {}", &self.input);
         }
@@ -65,10 +56,6 @@ impl Cli {
 
 #[derive(Clone, Copy, PartialEq, Serialize)]
 pub enum FileFormat {
-    #[serde(rename = "bq")]
-    Bq,
-    #[serde(rename = "vbq")]
-    Vbq,
-    #[serde(rename = "fq")]
-    Fq,
+    Binseq,
+    Fastx,
 }
