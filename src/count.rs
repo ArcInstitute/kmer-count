@@ -65,8 +65,8 @@ fn kmer_count(seq: &[u8], map: &mut KmerMap, ksize: usize) -> Result<()> {
             ksize
         )
     }
-    for idx in 0..seq.len() - ksize {
-        let sub = &seq[idx..idx + ksize];
+
+    for sub in seq.windows(ksize) {
         if let Ok(encoding) = bitnuc::as_2bit(sub) {
             *map.entry(encoding).or_insert(0) += 1;
         } else {
