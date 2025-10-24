@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use hashbrown::HashMap;
 use parking_lot::Mutex;
 
-pub type KmerMap = HashMap<u64, usize>;
+pub type KmerMap = HashMap<Vec<u8>, usize>;
 
 #[derive(Clone)]
 pub struct Counter {
@@ -38,17 +38,11 @@ impl Counter {
     }
 
     pub fn pprint<W: Write>(&self, writer: &mut W) -> Result<()> {
-        let mut dbuf = Vec::with_capacity(self.ksize);
         let mut csv_writer = csv::WriterBuilder::new()
             .delimiter(b'\t')
             .from_writer(writer);
         for (k, v) in self.global_map.lock().iter() {
-            // Decode the sequence
-            {
-                dbuf.clear();
-                bitnuc::from_2bit(*k, self.ksize, &mut dbuf)?;
-            }
-            let seq_str = std::str::from_utf8(&dbuf)?;
+            let seq_str = std::str::from_utf8(k)?;
             csv_writer.serialize((v, seq_str))?;
         }
         csv_writer.flush()?;
@@ -70,19 +64,21 @@ fn kmer_count(seq: &[u8], map: &mut KmerMap, ksize: usize) -> Result<()> {
     }
 
     for sub in seq.windows(ksize) {
-        if let Ok(encoding) = bitnuc::as_2bit(sub) {
-            *map.entry(encoding).or_insert(0) += 1;
-        } else {
-            // Skip invalid nucleotides
-        }
+        *map.entry_ref(sub).or_insert(0) += 1;
     }
     Ok(())
 }
 
 /// Takes all keys and entries from one kmer map and updates the other.
 fn consolidate_maps(from: &mut KmerMap, to: &mut KmerMap) {
-    from.drain()
-        .for_each(|(k, v)| *to.entry(k).or_default() += v);
+    from.iter_mut().filter(|(_, v)| **v > 0).for_each(|(k, v)| {
+        if let Some(entry) = to.get_mut(k) {
+            *entry += *v;
+        } else {
+            to.insert(k.clone(), *v);
+        }
+        *v = 0; // reset local count
+    });
 }
 
 impl binseq::ParallelProcessor for Counter {
@@ -106,7 +102,6 @@ impl binseq::ParallelProcessor for Counter {
         {
             *self.global_n.lock() += self.local_n;
         }
-        self.local_map.clear(); // should be drained but just in case
         self.local_n = 0;
         Ok(())
     }

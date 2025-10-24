@@ -7,7 +7,6 @@ authors = ["Noam Teyssier <noam.teyssier@arcinstitute.org>"]
 
 [dependencies]
 anyhow = "1.0.100"
-bitnuc = "0.3.0"
 binseq = "0.7.5"
 clap = { version = "4.5.50", features = ["derive"] }
 csv = "1.4.0"
@@ -17,3 +16,6 @@ paraseq = "0.4.3"
 parking_lot = "0.12.5"
 serde_json = "1.0.145"
 serde = { version = "1.0.228", features = ["derive"] }
+
+[profile.release]
+debug = true
